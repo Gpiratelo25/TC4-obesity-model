@@ -2,7 +2,8 @@ import streamlit as st
 import pandas as pd
 import joblib
 import sklearn
-
+from matplotlib import pyplot as plt
+import seaborn as sns
 
 
 pipeline = joblib.load('obesity_model_pipeline.joblib')
@@ -83,11 +84,33 @@ with tab_simulador:
             st.error(f"Ocorreu um erro durante a predição: {e,prediction}")
             st.warning("Por favor, verifique os dados e tente novamente.")
 
-# Dashboard Tab
-#Aba de dashboard em desenvolvimento
 
+
+# ==============================================================================
+# ABA 2: DASHBOARD DINÂMICO
+# ==============================================================================
 with tab_dashboard:
     st.header("Dashboard de Análise de Obesidade")
-    st.write("Em construção...")
-    st.bar_chart({"A": 10, "B": 20, "C": 30})
-    st.info("Este gráfico explica o modelo.")
+    st.write("Análise Explicativa do Modelo")
+    
+   
+    # Acessar os passos do pipeline
+    step_model = pipeline.named_steps['model']
+    step_preprocessor = pipeline.named_steps['scaling'] # Ou 'preprocessor', confira seu código
+    
+    feature_names = step_preprocessor.get_feature_names_out()
+    # Gráfico 1: Importância das Features
+    st.subheader("1. O que mais impacta o risco?")
+    importances = step_model.feature_importances_
+    df_imp = pd.DataFrame({'Feature': feature_names, 'Importance': importances})
+    df_imp = df_imp.sort_values(by='Importance', ascending=False).head(10)
+
+    
+
+    # Plotar
+    fig1, ax1 = plt.subplots(figsize=(10, 6))
+    sns.barplot(data=df_imp, x='Importance', y='Feature', palette='viridis',hue='Feature', dodge=False)
+    ax1.set_title("Top 10 Fatores de Risco (Gini Importance)")
+    st.pyplot(fig1)
+    st.markdown("---")
+   
