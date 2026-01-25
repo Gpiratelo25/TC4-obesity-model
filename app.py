@@ -1,9 +1,32 @@
+from altair import Data
 import streamlit as st
 import pandas as pd
 import joblib
 import sklearn
+from sklearn.inspection import PartialDependenceDisplay
 from matplotlib import pyplot as plt
 import seaborn as sns
+@st.cache_data
+def load_dataset():
+    data = pd.read_csv('Obesity.csv')
+    ajusta_nomes={"FAVC": "Consumo de alimentos com alto teor calórico",
+                  "FCVC": "Frequência de consumo de vegetais",
+                  "NCP": "Número de refeições por dia",
+                  "CAEC": "Consumo de alimentos entre as refeições",
+                  "SMOKE": "Fuma",
+                  "SCC": "Consumo de bebidas alcoólicas",
+                  "FAF": "Frequência de atividade física",
+                  "TUE": "Tempo gasto em atividades físicas",
+                  "CALC": "Tempo gasto em atividades sedentárias",
+                  "MTRANS": "Meio de transporte utilizado",
+                  "CH2O": "Consumo de água diário"
+                  }
+
+                    
+    data.rename(columns=ajusta_nomes, inplace=True)
+    X = data.drop(columns=['Obesity', 'Weight', 'Height'], errors='ignore')
+    
+    return data,X
 
 
 pipeline = joblib.load('obesity_model_pipeline.joblib')
@@ -90,10 +113,10 @@ with tab_simulador:
 # ABA 2: DASHBOARD DINÂMICO
 # ==============================================================================
 with tab_dashboard:
+
+
     st.header("Dashboard de Análise de Obesidade")
     st.write("Análise Explicativa do Modelo")
-    
-   
     # Acessar os passos do pipeline
     step_model = pipeline.named_steps['model']
     step_preprocessor = pipeline.named_steps['scaling'] # Ou 'preprocessor', confira seu código
@@ -110,7 +133,42 @@ with tab_dashboard:
     # Plotar
     fig1, ax1 = plt.subplots(figsize=(10, 6))
     sns.barplot(data=df_imp, x='Importance', y='Feature', palette='viridis',hue='Feature', dodge=False)
-    ax1.set_title("Top 10 Fatores de Risco (Gini Importance)")
+    ax1.set_title("Top 10 Fatores de Risco")
     st.pyplot(fig1)
+    st.caption("Fatores que mais influenciam a classificação de Obesidade Tipo III.")
     st.markdown("---")
+
+    st.subheader("2. Distribuição dos Níveis de Obesidade na Base de Dados")
+    data,X = load_dataset()
+    fig2, ax2 = plt.subplots(figsize=(8, 5))
+    
+
+    # 1. Configurar o que queremos ver
+    # Vamos ver o impacto da "Atividade Física" (FAF) e "Vegetais" (FCVC)
+    features_para_ver = ['num__FAF', 'num__FCVC'] 
+
+    # Precisamos pegar os nomes corretos que saíram do transformer
+    # Se der erro de nome, imprima 'nomes_features' para conferir
+    nomes_features = step_preprocessor.get_feature_names_out()
+
+    print("Gerando gráfico de Dependência Parcial (Causa e Efeito)...")
+
+    # 2. Plotar
+    fig, ax = plt.subplots(figsize=(12, 20))
+
+    # A classe 6 é a Obesidade Tipo III (o caso grave)
+    # Se o seu modelo for binário ou diferente, ajuste o target.
+    display = PartialDependenceDisplay.from_estimator(
+        step_model,                # Sua Random Forest
+        step_preprocessor.transform(X), # Seus dados transformados
+        features=nomes_features, # Vamos varrer pelos índices
+        feature_names=nomes_features, # Nomes das colunas
+        target=6, # Focando na Classe 6 (Obesidade Grave)
+
+        ax=ax
+    )
+
+    plt.suptitle('Como FAF e FCVC impactam o risco de Obesidade Tipo III', fontsize=16)
+    plt.show()
+
    
